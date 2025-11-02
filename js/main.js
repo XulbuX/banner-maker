@@ -177,3 +177,24 @@ const resizeObserver = new ResizeObserver(debounce(() => updateNoiseTexture(), 1
 resizeObserver.observe(previewCard);
 
 updateNoiseTexture();
+
+// EXPORT BANNER FUNCTIONALITY
+const dlBtn = document.getElementById('dl-btn');
+dlBtn.addEventListener('click', () => {
+  if (!currentImg) {
+    alert('Please upload an image first!');
+    return;
+  }
+  
+  const fixWidth = parseInt(inputFixWidth.value, 10) || null;
+  const fixHeight = parseInt(inputFixHeight.value, 10) || null;
+  
+  exportBanner(
+    bannerPreview,
+    previewImg,
+    previewCard,
+    previewTxt,
+    fixWidth,
+    fixHeight
+  );
+});
