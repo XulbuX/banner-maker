@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Banner Maker</title>
+  <link rel="stylesheet" href="https://use.typekit.net/tne4lpa.css">
+  <link rel="stylesheet" href="css/main.css">
+  <script defer src="js/main.js"></script>
+</head>
+
+<body>
+  <header>
+    <h1 class="header-title">
+      Banner Maker
+    </h1>
+    <button id="dl-btn" type="button">
+      <img src="assets/img/btn_dl.svg" alt="Download Icon" />
+      Export Banner
+    </button>
+  </header>
+
+  <main>
+    <div class="input-section">
+      <div class="input-group" title="Banner Text">
+        <label for="input-txt">
+          <img src="assets/img/input_txt.svg" alt="Text Icon" />
+        </label>
+        <input id="input-txt" type="text" placeholder="Banner Text" />
+      </div>
+      <div class="input-group" title="Text Color">
+        <label for="input-txt-color">
+          <img src="assets/img/input_txt_color.svg" alt="Color Icon" />
+        </label>
+        <input id="input-txt-color" type="color" />
+      </div>
+      <div class="input-group" title="Card Tint Color">
+        <label for="input-card-tint">
+          <img src="assets/img/input_card_tint.svg" alt="Tint Icon" />
+        </label>
+        <input id="input-card-tint" type="color" />
+      </div>
+      <div class="input-group" title="Banner Image">
+        <label for="input-img">
+          <img src="assets/img/input_img.svg" alt="Image Icon" />
+        </label>
+        <input id="input-img" type="file" accept="image/*" />
+      </div>
+      <div class="input-group" title="Fix Banner Width [px]">
+        <label for="input-fix-width">
+          <img src="assets/img/input_fix_width.svg" alt="Text Icon" />
+        </label>
+        <input id="input-fix-width" type="number" placeholder="Fix Banner Width in Pixels" />
+      </div>
+      <div class="input-group" title="Fix Banner Height [px]">
+        <label for="input-fix-height">
+          <img src="assets/img/input_fix_height.svg" alt="Text Icon" />
+        </label>
+        <input id="input-fix-height" type="number" placeholder="Fix Banner Height in Pixels" />
+      </div>
+    </div>
+
+    <div class="preview-container">
+      <div id="banner-preview">
+        <img id="preview-img" alt="Banner Image">
+        <div id="preview-card">
+          <div id="preview-txt" />
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+
+</html>
