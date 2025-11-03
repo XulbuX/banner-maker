@@ -180,6 +180,7 @@ input[type="file"]::file-selector-button:hover { background-color: var(--btn-2-b
   left: 0;
   right: 0;
   bottom: 0;
+  opacity: 0.2;
   position: absolute;
   border-radius: inherit;
   pointer-events: none;
