@@ -7,6 +7,20 @@
 const getComputed = (element, property) => window.getComputedStyle(element).getPropertyValue(property).trim();
 
 /**
+ * Convert hex color to RGB object
+ * @param {string} hex - hex color string
+ * @returns {{r: number, g: number, b: number}}
+ */
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 255, g: 255, b: 255 };
+}
+
+/**
  * Exports the banner as a PNG image
  * @param {HTMLElement} bannerElement - the banner preview element
  * @param {HTMLImageElement} imgElement - the image element inside the banner
@@ -14,8 +28,9 @@ const getComputed = (element, property) => window.getComputedStyle(element).getP
  * @param {HTMLElement} txtElement - the text element inside the banner
  * @param {number|null} fixWidth - fixed width for export (or null)
  * @param {number|null} fixHeight - fixed height for export (or null)
+ * @param {string} cardTintColor - the card tint color in hex format
  */
-async function exportBanner(bannerElement, imgElement, cardElement, txtElement, fixWidth, fixHeight) {
+async function exportBanner(bannerElement, imgElement, cardElement, txtElement, fixWidth, fixHeight, cardTintColor) {
   try {
     const currentRect = bannerElement.getBoundingClientRect();
     const imgNaturalWidth = imgElement.naturalWidth;
@@ -139,10 +154,11 @@ async function exportBanner(bannerElement, imgElement, cardElement, txtElement, 
     // DRAW BLURRED BACKGROUND TO CARD CANVAS
     cardCtx.drawImage(blurCanvas, padding, padding, cardWidth, cardHeight, 0, 0, cardWidth, cardHeight);
     
-    // DRAW GRADIENT OVERLAY ON CARD CANVAS
+    // DRAW GRADIENT OVERLAY ON CARD CANVAS WITH CARD TINT COLOR
+    const tintRgb = hexToRgb(cardTintColor);
     const gradient = cardCtx.createLinearGradient(0, 0, cardWidth, cardHeight);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
+    gradient.addColorStop(0, `rgba(${tintRgb.r}, ${tintRgb.g}, ${tintRgb.b}, 0.25)`);
+    gradient.addColorStop(1, `rgba(${tintRgb.r}, ${tintRgb.g}, ${tintRgb.b}, 0.15)`);
     cardCtx.fillStyle = gradient;
     cardCtx.fillRect(0, 0, cardWidth, cardHeight);
     

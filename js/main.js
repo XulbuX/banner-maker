@@ -195,6 +195,7 @@ dlBtn.addEventListener('click', () => {
     previewCard,
     previewTxt,
     fixWidth,
-    fixHeight
+    fixHeight,
+    inputCardTint.value
   );
 });
