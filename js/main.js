@@ -181,6 +181,8 @@ function applyAspectRatio(ratioString) {
   calcWidth = Math.max(fixWidthRange.min, Math.min(fixWidthRange.max, calcWidth));
   calcHeight = Math.max(fixHeightRange.min, Math.min(fixHeightRange.max, calcHeight));
 
+  inputFixWidth.value = calcWidth;
+  inputFixHeight.value = calcHeight;
   setFixWidth(calcWidth, true);
   setFixHeight(calcHeight, true);
 
