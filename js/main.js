@@ -244,21 +244,21 @@ inputFixHeight.addEventListener('input', (e) => {
   setFixHeight(parseInt(e.target.value, 10));
 });
 
-// IMAGE DRAG FUNCTIONALITY
-previewImg.addEventListener('mousedown', (e) => {
-  if (previewImg.dataset.draggable !== 'true') return;
+// IMAGE DRAG FUNCTIONALITY (MOUSE & TOUCH)
+function startDrag(clientX, clientY) {
+  if (previewImg.dataset.draggable !== 'true') return false;
 
   isDragging = true;
-  dragStartX = e.clientX;
-  dragStartY = e.clientY;
+  dragStartX = clientX;
+  dragStartY = clientY;
   dragStartOffsetX = imgOffsetX;
   dragStartOffsetY = imgOffsetY;
 
   previewImg.style.userSelect = 'none';
-  e.preventDefault();
-});
+  return true;
+}
 
-document.addEventListener('mousemove', (e) => {
+function moveDrag(clientX, clientY) {
   if (!isDragging) return;
 
   const canDragX = previewImg.dataset.dragX === 'true';
@@ -266,25 +266,54 @@ document.addEventListener('mousemove', (e) => {
 
   if (canDragX) {
     // DIRECT PIXEL-BASED MOVEMENT (INVERTED BECAUSE OBJECT-POSITION WORKS OPPOSITE TO DRAG DIRECTION)
-    const deltaX = e.clientX - dragStartX;
+    const deltaX = clientX - dragStartX;
     imgOffsetX = dragStartOffsetX - deltaX;
   }
 
   if (canDragY) {
     // DIRECT PIXEL-BASED MOVEMENT (INVERTED BECAUSE OBJECT-POSITION WORKS OPPOSITE TO DRAG DIRECTION)
-    const deltaY = e.clientY - dragStartY;
+    const deltaY = clientY - dragStartY;
     imgOffsetY = dragStartOffsetY - deltaY;
   }
 
   updateImagePosition();
-});
+}
 
-document.addEventListener('mouseup', () => {
+function endDrag() {
   if (isDragging) {
     isDragging = false;
     previewImg.style.userSelect = '';
   }
+}
+
+// MOUSE EVENTS
+previewImg.addEventListener('mousedown', (e) => {
+  if (startDrag(e.clientX, e.clientY))
+    e.preventDefault();
 });
+
+document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+document.addEventListener('mouseup', () => endDrag());
+
+// TOUCH EVENTS
+previewImg.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    if (startDrag(touch.clientX, touch.clientY))
+      e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('touchmove', (e) => {
+  if (isDragging && e.touches.length === 1) {
+    const touch = e.touches[0];
+    moveDrag(touch.clientX, touch.clientY);
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', () => endDrag());
+document.addEventListener('touchcancel', () => endDrag());
 
 // DYNAMIC NOISE TEXTURE GENERATION
 function generateNoiseTexture(width, height) {
