@@ -217,7 +217,10 @@ async function exportBanner(bannerElement, imgElement, cardElement, txtElement, 
     ctx.roundRect(cardX, cardY, cardWidth, cardHeight, cardRadius);
     ctx.clip();
 
-    const text = txtElement.textContent;
+    // GET TEXT LINES (SPLIT BY <br> TAGS)
+    const textHTML = txtElement.innerHTML;
+    const explicitLines = textHTML.split('<br>');
+
     const fontSize = parseFloat(getComputed(txtElement, 'font-size')) * scale;
     const fontWeight = getComputed(txtElement, 'font-weight');
     const fontFamily = getComputed(txtElement, 'font-family');
@@ -226,13 +229,45 @@ async function exportBanner(bannerElement, imgElement, cardElement, txtElement, 
     ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    
-    // MEASURE TEXT TO GET ACTUAL DIMENSIONS
-    const metrics = ctx.measureText(text);
+
+    // WORD WRAP FUNCTION - SPLITS LONG LINES TO FIT WITHIN CARD WIDTH
+    const maxTextWidth = cardWidth - (30 * 2 * scale); // ACCOUNT FOR PADDING
+    const textLines = [];
+
+    explicitLines.forEach(line => {
+      // PRESERVE EMPTY LINES
+      if (!line || line.trim() === '') {
+        textLines.push('');
+        return;
+      }
+
+      const words = line.split(' ');
+      let currentLine = '';
+
+      words.forEach((word, index) => {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const metrics = ctx.measureText(testLine);
+
+        if (metrics.width > maxTextWidth && currentLine) {
+          textLines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      });
+
+      if (currentLine)
+        textLines.push(currentLine);
+    });
+
+    // CALCULATE LINE HEIGHT AND POSITIONING FOR MULTI-LINE TEXT
+
+    const lineHeight = fontSize * 1.2;
+    const totalTextHeight = textLines.length * lineHeight;
 
     const textX = cardX + cardWidth / 2;
     // CENTER TEXT VISUALLY BY USING ALPHABETIC BASELINE AND OFFSETTING BY HALF THE VISUAL HEIGHT
-    const textY = cardY + cardHeight / 2 + metrics.actualBoundingBoxAscent / 2;
+    const textY = cardY + cardHeight / 2 - totalTextHeight / 2 + lineHeight * 0.8;
 
     // PARSE TEXT COLOR TO GET RGB VALUES
     const colorMatch = textColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
@@ -257,33 +292,41 @@ async function exportBanner(bannerElement, imgElement, cardElement, txtElement, 
     const b3 = Math.round(b * 0.2 + 255 * 0.8);
     const shadow3 = `rgba(${r3}, ${g3}, ${b3}, 1)`;
 
-    // DRAW ALL SHADOW LAYERS
-    ctx.shadowColor = shadow1;
-    ctx.shadowBlur = 5 * scale;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = -2 * scale;
-    ctx.fillStyle = textColor;
-    ctx.fillText(text, textX, textY);
+    // DRAW ALL SHADOW LAYERS (HANDLE MULTI-LINE TEXT)
+    textLines.forEach((line, index) => {
+      const currentY = textY + index * lineHeight;
 
-    ctx.shadowColor = shadow2;
-    ctx.shadowBlur = 0.5 * scale;
-    ctx.shadowOffsetY = -1 * scale;
-    ctx.fillText(text, textX, textY);
+      ctx.shadowColor = shadow1;
+      ctx.shadowBlur = 5 * scale;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = -2 * scale;
+      ctx.fillStyle = textColor;
+      ctx.fillText(line, textX, currentY);
 
-    ctx.shadowColor = shadow3;
-    ctx.shadowBlur = 2 * scale;
-    ctx.shadowOffsetY = 1 * scale;
-    ctx.fillText(text, textX, textY);
+      ctx.shadowColor = shadow2;
+      ctx.shadowBlur = 0.5 * scale;
+      ctx.shadowOffsetY = -1 * scale;
+      ctx.fillText(line, textX, currentY);
 
-    // MAIN TEXT WITH 80% OPACITY AND MULTIPLY BLEND MODE
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-    ctx.globalAlpha = 0.8;
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = textColor;
-    ctx.fillText(text, textX, textY);
+      ctx.shadowColor = shadow3;
+      ctx.shadowBlur = 2 * scale;
+      ctx.shadowOffsetY = 1 * scale;
+      ctx.fillText(line, textX, currentY);
+
+      // MAIN TEXT WITH 80% OPACITY AND MULTIPLY BLEND MODE
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.globalAlpha = 0.8;
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = textColor;
+      ctx.fillText(line, textX, currentY);
+
+      // RESET FOR NEXT LINE
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    });
 
     ctx.restore();
 

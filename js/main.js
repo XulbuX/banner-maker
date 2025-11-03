@@ -1,4 +1,5 @@
-const initTxt = 'Sample Banner Text';
+const initTxt = `Sample
+Banner Text`;
 const initTxtColor = '#FFFFFF';
 const initCardTint = '#FFFFFF';
 const initImg = 'assets/img/banner_img_sample.jpg';
@@ -24,7 +25,7 @@ function setInitValues() {
   inputCardTint.value = initCardTint;
   inputFixWidth.value = initFixWidth;
   inputFixHeight.value = initFixHeight;
-  previewTxt.textContent = initTxt;
+  previewTxt.innerHTML = initTxt.replace(/\n/g, '<br>');
   previewTxt.style.color = initTxtColor;
   previewTxt.style.setProperty('--txt-shadow-color', initTxtColor);
   updateCardTint(initCardTint);
@@ -83,7 +84,8 @@ function setFixHeight(height = null) {
 
 // UPDATE TEXT CONTENT
 inputTxt.addEventListener('input', (e) => {
-  previewTxt.textContent = e.target.value || '';
+  const text = e.target.value || '';
+  previewTxt.innerHTML = text.replace(/\n/g, '<br>');
 });
 
 // UPDATE TEXT COLOR
