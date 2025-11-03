@@ -141,27 +141,48 @@ function applyAspectRatio(ratioString) {
 
   const width = parseInt(inputFixWidth.value, 10);
   const height = parseInt(inputFixHeight.value, 10);
+  const ratioVal = ratio.width / ratio.height;
+
+  let calcWidth, calcHeight;
 
   // DETERMINE WHICH DIMENSION TO USE AS BASE
   // IF BOTH ARE SET, USE WIDTH AS BASE
   // IF ONLY ONE IS SET, USE THAT ONE
-  // IF NEITHER IS SET, USE A DEFAULT BASE OF 1000
+  // IF NEITHER IS SET, USE A DEFAULT BASE (PREVIEW IMAGE WIDTH OR 1000)
   if (width && !isNaN(width)) {
-    const calculatedHeight = Math.round(width / (ratio.width / ratio.height));
-    inputFixHeight.value = calculatedHeight;
-    setFixHeight(calculatedHeight, true);
+    calcWidth = width;
+    calcHeight = Math.round(width / ratioVal);
   } else if (height && !isNaN(height)) {
-    const calculatedWidth = Math.round(height * (ratio.width / ratio.height));
-    inputFixWidth.value = calculatedWidth;
-    setFixWidth(calculatedWidth, true);
+    calcHeight = height;
+    calcWidth = Math.round(height * ratioVal);
   } else {
-    const baseWidth = previewImg.width;
-    const calculatedHeight = Math.round(baseWidth / (ratio.width / ratio.height));
-    inputFixWidth.value = baseWidth;
-    inputFixHeight.value = calculatedHeight;
-    setFixWidth(baseWidth, true);
-    setFixHeight(calculatedHeight, true);
+    calcWidth = previewImg.width || 1000;
+    calcHeight = Math.round(calcWidth / ratioVal);
   }
+
+  // CLAMP TO VALID RANGES AND ADJUST THE OTHER DIMENSION IF NEEDED
+  if (calcWidth < fixWidthRange.min) {
+    calcWidth = fixWidthRange.min;
+    calcHeight = Math.round(calcWidth / ratioVal);
+  } else if (calcWidth > fixWidthRange.max) {
+    calcWidth = fixWidthRange.max;
+    calcHeight = Math.round(calcWidth / ratioVal);
+  }
+
+  if (calcHeight < fixHeightRange.min) {
+    calcHeight = fixHeightRange.min;
+    calcWidth = Math.round(calcHeight * ratioVal);
+  } else if (calcHeight > fixHeightRange.max) {
+    calcHeight = fixHeightRange.max;
+    calcWidth = Math.round(calcHeight * ratioVal);
+  }
+
+  // FINAL CLAMP (IN CASE ADJUSTING ONE DIMENSION PUSHED THE OTHER OUT OF RANGE)
+  calcWidth = Math.max(fixWidthRange.min, Math.min(fixWidthRange.max, calcWidth));
+  calcHeight = Math.max(fixHeightRange.min, Math.min(fixHeightRange.max, calcHeight));
+
+  setFixWidth(calcWidth, true);
+  setFixHeight(calcHeight, true);
 
   isUpdatingAspectRatio = false;
 }
@@ -176,8 +197,8 @@ function updateAspectRatioDisplay(width, height) {
     // CHECK IF ACTUAL RATIO IS CLOSE TO ANY COMMON RATIO (WITHIN 1% TOLERANCE)
     const tolerance = 0.01;
     for (const ratio of commonAspectRatios) {
-      const commonRatioValue = ratio.w / ratio.h;
-      if (Math.abs(actualRatio - commonRatioValue) / commonRatioValue < tolerance) {
+      const commonRatioVal = ratio.w / ratio.h;
+      if (Math.abs(actualRatio - commonRatioVal) / commonRatioVal < tolerance) {
         // CLOSE ENOUGH TO A COMMON RATIO, USE IT
         inputAspectRatio.value = `${ratio.w}:${ratio.h}`;
         return;
