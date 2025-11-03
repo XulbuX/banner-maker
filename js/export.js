@@ -1,177 +1,95 @@
 /**
  * Export functionality for the banner maker
- * Renders the banner with the card overlay to a canvas and exports it as an image
+ * Manually renders the banner to canvas for pixel-perfect export
  */
 
 /**
- * Creates a noise texture canvas
- * @param {number} width - Width of the noise texture
- * @param {number} height - Height of the noise texture
- * @returns {HTMLCanvasElement} Canvas with noise texture
+ * Helper to get computed CSS value
  */
-function createNoiseTexture(width, height) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  
-  const imageData = ctx.createImageData(width, height);
-  const data = imageData.data;
-  
-  for (let i = 0; i < data.length; i += 4) {
-    const value = Math.random() * 255;
-    data[i] = value;     // R
-    data[i + 1] = value; // G
-    data[i + 2] = value; // B
-    data[i + 3] = 255;   // A
-  }
-  
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
-}
-
-/**
- * Draws a rounded rectangle path
- */
-function roundRect(ctx, x, y, width, height, radius) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
+function getComputed(element, property) {
+  return window.getComputedStyle(element).getPropertyValue(property).trim();
 }
 
 /**
  * Exports the banner as a PNG image
- * @param {HTMLElement} bannerElement - The banner preview element
- * @param {HTMLImageElement} imgElement - The background image element
- * @param {HTMLElement} cardElement - The card overlay element
- * @param {HTMLElement} txtElement - The text element
- * @param {number|null} fixWidth - Fixed width in pixels (if set)
- * @param {number|null} fixHeight - Fixed height in pixels (if set)
  */
 async function exportBanner(bannerElement, imgElement, cardElement, txtElement, fixWidth, fixHeight) {
   try {
-    // Get the actual dimensions of the preview
-    const previewRect = bannerElement.getBoundingClientRect();
+    const currentRect = bannerElement.getBoundingClientRect();
     const imgNaturalWidth = imgElement.naturalWidth;
     const imgNaturalHeight = imgElement.naturalHeight;
     
-    // Calculate aspect ratios
-    const imgAspectRatio = imgNaturalWidth / imgNaturalHeight;
-    const previewAspectRatio = previewRect.width / previewRect.height;
-    
-    // Determine export dimensions
-    let exportWidth, exportHeight;
+    // Determine target dimensions
+    let targetWidth, targetHeight;
     
     if (fixWidth && fixHeight) {
-      // Both dimensions fixed - use those exact dimensions
-      exportWidth = fixWidth;
-      exportHeight = fixHeight;
+      targetWidth = fixWidth;
+      targetHeight = fixHeight;
     } else if (fixWidth || fixHeight) {
-      // One dimension fixed - export at original resolution but cropped to preview aspect ratio
+      const previewAspectRatio = currentRect.width / currentRect.height;
+      const imgAspectRatio = imgNaturalWidth / imgNaturalHeight;
+      
       if (previewAspectRatio > imgAspectRatio) {
-        // Preview is wider (relative to height) than original - use full width, crop height
-        exportWidth = imgNaturalWidth;
-        exportHeight = Math.round(imgNaturalWidth / previewAspectRatio);
+        targetWidth = imgNaturalWidth;
+        targetHeight = Math.round(imgNaturalWidth / previewAspectRatio);
       } else {
-        // Preview is taller (relative to width) than original - use full height, crop width
-        exportHeight = imgNaturalHeight;
-        exportWidth = Math.round(imgNaturalHeight * previewAspectRatio);
+        targetHeight = imgNaturalHeight;
+        targetWidth = Math.round(imgNaturalHeight * previewAspectRatio);
       }
     } else {
-      // No fixed dimensions - use natural image size
-      exportWidth = imgNaturalWidth;
-      exportHeight = imgNaturalHeight;
+      targetWidth = imgNaturalWidth;
+      targetHeight = imgNaturalHeight;
     }
     
-    // Calculate scale factor
-    const scale = exportWidth / previewRect.width;
+    const scale = targetWidth / currentRect.width;
     
-    // Create main canvas
+    // Create canvas
     const canvas = document.createElement('canvas');
-    canvas.width = exportWidth;
-    canvas.height = exportHeight;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
     const ctx = canvas.getContext('2d');
     
-    // Load and draw the background image
+    // Draw background image
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    
     await new Promise((resolve, reject) => {
       img.onload = resolve;
       img.onerror = reject;
       img.src = imgElement.src;
     });
     
-    // Calculate source cropping if needed
-    let sx = 0, sy = 0, sw = imgNaturalWidth, sh = imgNaturalHeight;
+    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
     
-    if (fixWidth || fixHeight) {
-      const targetAspect = exportWidth / exportHeight;
-      const sourceAspect = imgNaturalWidth / imgNaturalHeight;
-      
-      if (targetAspect > sourceAspect) {
-        // Crop height (top and bottom)
-        sh = imgNaturalWidth / targetAspect;
-        sy = (imgNaturalHeight - sh) / 2;
-      } else if (targetAspect < sourceAspect) {
-        // Crop width (left and right)
-        sw = imgNaturalHeight * targetAspect;
-        sx = (imgNaturalWidth - sw) / 2;
-      }
-    }
-    
-    // Draw the background image
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, exportWidth, exportHeight);
-    
-    // Get card and text computed styles
-    const cardStyles = window.getComputedStyle(cardElement);
-    const txtStyles = window.getComputedStyle(txtElement);
+    // Get card measurements
     const cardRect = cardElement.getBoundingClientRect();
     const bannerRect = bannerElement.getBoundingClientRect();
     
-    // Calculate card position and size (scaled)
-    const cardRelativeX = (cardRect.left - bannerRect.left) / previewRect.width;
-    const cardRelativeY = (cardRect.top - bannerRect.top) / previewRect.height;
-    const cardRelativeWidth = cardRect.width / previewRect.width;
-    const cardRelativeHeight = cardRect.height / previewRect.height;
+    const cardX = ((cardRect.left - bannerRect.left) / currentRect.width) * targetWidth;
+    const cardY = ((cardRect.top - bannerRect.top) / currentRect.height) * targetHeight;
+    const cardWidth = (cardRect.width / currentRect.width) * targetWidth;
+    const cardHeight = (cardRect.height / currentRect.height) * targetHeight;
+    const cardRadius = parseFloat(getComputed(cardElement, 'border-radius')) * scale;
     
-    const cardX = cardRelativeX * exportWidth;
-    const cardY = cardRelativeY * exportHeight;
-    const cardWidth = cardRelativeWidth * exportWidth;
-    const cardHeight = cardRelativeHeight * exportHeight;
-    
-    // Get and scale card properties
-    const borderRadius = parseFloat(cardStyles.borderRadius) * scale;
-    
-    // Create backdrop blur effect
+    // Create blurred backdrop
     const blurRadius = 12 * scale;
-    const blurPadding = Math.ceil(blurRadius * 3);
     const blurCanvas = document.createElement('canvas');
-    blurCanvas.width = Math.ceil(cardWidth + blurPadding * 2);
-    blurCanvas.height = Math.ceil(cardHeight + blurPadding * 2);
+    const padding = Math.ceil(blurRadius * 2);
+    blurCanvas.width = cardWidth + padding * 2;
+    blurCanvas.height = cardHeight + padding * 2;
     const blurCtx = blurCanvas.getContext('2d');
     
-    // Copy the card area from main canvas
     blurCtx.drawImage(
       canvas,
-      Math.max(0, cardX - blurPadding),
-      Math.max(0, cardY - blurPadding),
-      Math.min(exportWidth, cardWidth + blurPadding * 2),
-      Math.min(exportHeight, cardHeight + blurPadding * 2),
+      Math.max(0, cardX - padding),
+      Math.max(0, cardY - padding),
+      Math.min(targetWidth - cardX + padding, blurCanvas.width),
+      Math.min(targetHeight - cardY + padding, blurCanvas.height),
       0, 0,
       blurCanvas.width,
       blurCanvas.height
     );
     
-    // Apply blur using StackBlur
+    // Apply blur
     if (typeof StackBlur !== 'undefined') {
       StackBlur.canvasRGB(blurCanvas, 0, 0, blurCanvas.width, blurCanvas.height, Math.round(blurRadius));
     }
@@ -179,187 +97,204 @@ async function exportBanner(bannerElement, imgElement, cardElement, txtElement, 
     // Apply saturation (180%)
     const imageData = blurCtx.getImageData(0, 0, blurCanvas.width, blurCanvas.height);
     const data = imageData.data;
-    const saturation = 1.8;
-    
     for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
+      const r = data[i], g = data[i + 1], b = data[i + 2];
       const gray = 0.2989 * r + 0.5870 * g + 0.1140 * b;
-      data[i] = Math.min(255, Math.max(0, gray + saturation * (r - gray)));
-      data[i + 1] = Math.min(255, Math.max(0, gray + saturation * (g - gray)));
-      data[i + 2] = Math.min(255, Math.max(0, gray + saturation * (b - gray)));
+      data[i] = Math.min(255, Math.max(0, gray + 1.8 * (r - gray)));
+      data[i + 1] = Math.min(255, Math.max(0, gray + 1.8 * (g - gray)));
+      data[i + 2] = Math.min(255, Math.max(0, gray + 1.8 * (b - gray)));
     }
     blurCtx.putImageData(imageData, 0, 0);
     
-    // Draw the card with all effects
-    ctx.save();
-    
-    // Clip to rounded rectangle for the blurred background
-    roundRect(ctx, cardX, cardY, cardWidth, cardHeight, borderRadius);
-    ctx.clip();
-    
-    // Draw blurred background
-    ctx.drawImage(blurCanvas, cardX - blurPadding, cardY - blurPadding);
-    
-    ctx.restore();
-    
-    // Draw card shadows
-    ctx.save();
-    const shadowLayers = [
-      { blur: 4 * scale, offsetY: 2 * scale, alpha: 0.1 },
-      { blur: 16 * scale, offsetY: 8 * scale, alpha: 0.2 },
-      { blur: 48 * scale, offsetY: 16 * scale, alpha: 0.3 }
+    // Draw box shadows FIRST (behind the card)
+    // CSS: 0 2px 4px 0 gray-950 10%, 0 8px 16px 0 gray-950 20%, 0 16px 48px 0 gray-950 30%
+    // gray-950 is rgb(10, 10, 10) - much darker for visible shadows
+    const shadows = [
+      { offsetY: 2 * scale, blur: 4 * scale, color: 'rgba(10, 10, 10, 0.1)' },
+      { offsetY: 8 * scale, blur: 16 * scale, color: 'rgba(10, 10, 10, 0.2)' },
+      { offsetY: 16 * scale, blur: 48 * scale, color: 'rgba(10, 10, 10, 0.3)' }
     ];
     
-    shadowLayers.forEach(layer => {
-      ctx.shadowColor = `rgba(10, 10, 10, ${layer.alpha})`;
-      ctx.shadowBlur = layer.blur;
-      ctx.shadowOffsetY = layer.offsetY;
-      roundRect(ctx, cardX, cardY, cardWidth, cardHeight, borderRadius);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.01)';
-      ctx.fill();
-    });
-    
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
-    ctx.restore();
-    
-    // Draw card gradient overlay
-    ctx.save();
-    roundRect(ctx, cardX, cardY, cardWidth, cardHeight, borderRadius);
-    ctx.clip();
-    
-    const gradient = ctx.createLinearGradient(cardX, cardY, cardX + cardWidth, cardY + cardHeight);
-    const bgStyle = cardStyles.background || cardStyles.backgroundImage;
-    const rgbaMatch = bgStyle.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g);
-    
-    if (rgbaMatch && rgbaMatch.length >= 2) {
-      gradient.addColorStop(0, rgbaMatch[0]);
-      gradient.addColorStop(1, rgbaMatch[1]);
-    } else {
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
-      gradient.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
+    // Draw shadows multiple times to make them more visible
+    for (let i = 0; i < 3; i++) {
+      shadows.forEach(shadow => {
+        ctx.save();
+        ctx.shadowColor = shadow.color;
+        ctx.shadowBlur = shadow.blur;
+        ctx.shadowOffsetY = shadow.offsetY;
+        ctx.shadowOffsetX = 0;
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardWidth, cardHeight, cardRadius);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+        ctx.fill();
+        ctx.restore();
+      });
     }
     
-    ctx.fillStyle = gradient;
-    ctx.fill();
+    // Now create a temporary canvas for the card content with blur and gradient
+    const cardCanvas = document.createElement('canvas');
+    cardCanvas.width = cardWidth;
+    cardCanvas.height = cardHeight;
+    const cardCtx = cardCanvas.getContext('2d');
     
-    // Add noise texture
-    const noiseCanvas = createNoiseTexture(Math.ceil(cardWidth), Math.ceil(cardHeight));
+    // Draw blurred background to card canvas
+    cardCtx.drawImage(blurCanvas, padding, padding, cardWidth, cardHeight, 0, 0, cardWidth, cardHeight);
+    
+    // Draw gradient overlay on card canvas
+    const gradient = cardCtx.createLinearGradient(0, 0, cardWidth, cardHeight);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
+    cardCtx.fillStyle = gradient;
+    cardCtx.fillRect(0, 0, cardWidth, cardHeight);
+    
+    // Now clip and draw the card with rounded corners
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, cardRadius);
+    ctx.clip();
+    ctx.drawImage(cardCanvas, cardX, cardY);
+    
+    // Draw inset highlights (within the clip region)
+    // CSS: inset 0 0 0 1px gray-50 6%, inset 2px 4px 4px 0 gray-50 12%
+    
+    // First inset: subtle border glow (1px, not scaled)
+    ctx.strokeStyle = 'rgba(250, 250, 250, 0.06)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(cardX + 0.5, cardY + 0.5, cardWidth - 1, cardHeight - 1, cardRadius);
+    ctx.stroke();
+    
+    // Top highlight gradient (inset light effect)
+    const topGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + 12 * scale);
+    topGradient.addColorStop(0, 'rgba(250, 250, 250, 0.12)');
+    topGradient.addColorStop(1, 'rgba(250, 250, 250, 0)');
+    ctx.fillStyle = topGradient;
+    ctx.fillRect(cardX, cardY, cardWidth, 12 * scale);
+    
+    // Generate and draw noise texture
+    const noiseCanvas = document.createElement('canvas');
+    noiseCanvas.width = cardWidth;
+    noiseCanvas.height = cardHeight;
+    const noiseCtx = noiseCanvas.getContext('2d');
+    
+    // Create noise using ImageData
+    const noiseData = noiseCtx.createImageData(cardWidth, cardHeight);
+    for (let i = 0; i < noiseData.data.length; i += 4) {
+      const noise = Math.random() * 255;
+      noiseData.data[i] = noise;
+      noiseData.data[i + 1] = noise;
+      noiseData.data[i + 2] = noise;
+      noiseData.data[i + 3] = 255;
+    }
+    noiseCtx.putImageData(noiseData, 0, 0);
+    
+    // Draw noise with overlay blend mode at 15% opacity
     ctx.globalAlpha = 0.15;
     ctx.globalCompositeOperation = 'overlay';
-    ctx.drawImage(noiseCanvas, cardX, cardY, cardWidth, cardHeight);
+    ctx.drawImage(noiseCanvas, cardX, cardY);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     
-    // Draw inset highlights
-    ctx.strokeStyle = 'rgba(250, 250, 250, 0.06)';
-    ctx.lineWidth = 1;
-    roundRect(ctx, cardX, cardY, cardWidth, cardHeight, borderRadius);
-    ctx.stroke();
-    
-    const topHighlight = ctx.createLinearGradient(cardX, cardY, cardX, cardY + 12 * scale);
-    topHighlight.addColorStop(0, 'rgba(250, 250, 250, 0.12)');
-    topHighlight.addColorStop(1, 'rgba(250, 250, 250, 0)');
-    ctx.fillStyle = topHighlight;
-    ctx.fillRect(cardX, cardY, cardWidth, 12 * scale);
-    
     ctx.restore();
     
-    // Draw text
-    const fontSize = parseFloat(txtStyles.fontSize) * scale;
-    const fontWeight = txtStyles.fontWeight;
-    const fontFamily = txtStyles.fontFamily;
-    const textColor = txtStyles.color;
-    
-    // Get text content and measure it
-    const text = txtElement.textContent;
-    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-    const textMetrics = ctx.measureText(text);
-    const textWidth = textMetrics.width;
-    
-    // Center text in card
-    const textX = cardX + cardWidth / 2;
-    const textY = cardY + cardHeight / 2;
-    
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    // Text shadows - render in order
-    const shadowColor = txtStyles.getPropertyValue('--txt-shadow-color') || textColor;
-    
-    // Shadow 1: Top glow (0 -2px 5px with 25% opacity)
+    // Draw text (need to clip to card region)
     ctx.save();
-    ctx.shadowColor = shadowColor;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, cardRadius);
+    ctx.clip();
+    
+    const text = txtElement.textContent;
+    const fontSize = parseFloat(getComputed(txtElement, 'font-size')) * scale;
+    const fontWeight = getComputed(txtElement, 'font-weight');
+    const fontFamily = getComputed(txtElement, 'font-family');
+    const textColor = getComputed(txtElement, 'color');
+    
+    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    
+    // Measure text to get actual dimensions
+    const metrics = ctx.measureText(text);
+    const textHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+    
+    const textX = cardX + cardWidth / 2;
+    // Center text visually by using alphabetic baseline and offsetting by half the visual height
+    const textY = cardY + cardHeight / 2 + metrics.actualBoundingBoxAscent / 2;
+    
+    // Parse text color to get RGB values
+    const colorMatch = textColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    let r = 255, g = 255, b = 255;
+    if (colorMatch) {
+      r = parseInt(colorMatch[1]);
+      g = parseInt(colorMatch[2]);
+      b = parseInt(colorMatch[3]);
+    }
+    
+    // Calculate shadow colors (using color-mix logic)
+    // Shadow 1: color-mix(in srgb, color 25%, transparent)
+    const shadow1 = `rgba(${r}, ${g}, ${b}, 0.25)`;
+    
+    // Shadow 2: color-mix(in srgb, color 20%, black 14%)
+    // This mixes: 20% of original color + 14% black = 34% total, rest transparent
+    const r2 = Math.round(r * 0.2 / 0.34);
+    const g2 = Math.round(g * 0.2 / 0.34);
+    const b2 = Math.round(b * 0.2 / 0.34);
+    const shadow2 = `rgba(${r2}, ${g2}, ${b2}, 0.34)`;
+    
+    // Shadow 3: color-mix(in srgb, color 20%, white 80%)
+    // This mixes: 20% of original color + 80% white = 100% opaque
+    const r3 = Math.round(r * 0.2 + 255 * 0.8);
+    const g3 = Math.round(g * 0.2 + 255 * 0.8);
+    const b3 = Math.round(b * 0.2 + 255 * 0.8);
+    const shadow3 = `rgba(${r3}, ${g3}, ${b3}, 1)`;
+    
+    // Draw all shadow layers
+    ctx.shadowColor = shadow1;
     ctx.shadowBlur = 5 * scale;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = -2 * scale;
-    ctx.globalAlpha = 0.25;
     ctx.fillStyle = textColor;
     ctx.fillText(text, textX, textY);
-    ctx.restore();
     
-    // Shadow 2: Thin outline (0 -1px 0.5px)
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.14)';
+    ctx.shadowColor = shadow2;
     ctx.shadowBlur = 0.5 * scale;
-    ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = -1 * scale;
-    ctx.globalAlpha = 0.2;
-    ctx.fillStyle = textColor;
     ctx.fillText(text, textX, textY);
-    ctx.restore();
     
-    // Shadow 3: Bottom highlight (0 1px 2px white)
-    ctx.save();
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+    ctx.shadowColor = shadow3;
     ctx.shadowBlur = 2 * scale;
-    ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 1 * scale;
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = textColor;
     ctx.fillText(text, textX, textY);
-    ctx.restore();
     
-    // Main text with multiply blend mode and 80% opacity
-    ctx.save();
-    ctx.fillStyle = textColor;
+    // Main text with 80% opacity and multiply blend mode
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
     ctx.globalAlpha = 0.8;
     ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = textColor;
     ctx.fillText(text, textX, textY);
+    
     ctx.restore();
     
-    downloadCanvas(canvas, exportWidth, exportHeight);
+    // Download
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const timestamp = new Date().toISOString().slice(0, 10);
+      a.download = `banner_${targetWidth}x${targetHeight}_${timestamp}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 'image/png');
     
   } catch (error) {
     console.error('Error exporting banner:', error);
     alert('Failed to export banner. Please try again.');
   }
-}
-
-/**
- * Downloads a canvas as PNG
- * @param {HTMLCanvasElement} canvas - The canvas to download
- * @param {number} width - Width for filename
- * @param {number} height - Height for filename
- */
-function downloadCanvas(canvas, width, height) {
-  canvas.toBlob((blob) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    
-    // Generate filename with dimensions
-    const timestamp = new Date().toISOString().slice(0, 10);
-    a.download = `banner_${width}x${height}_${timestamp}.png`;
-    
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 'image/png');
 }
 
 // Export the function for use in main.js
