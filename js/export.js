@@ -222,13 +222,16 @@ async function exportBanner(bannerElement, imgElement, cardElement, txtElement, 
     ctx.fillRect(cardX, cardY, cardWidth, 12 * scale);
 
     // GENERATE AND DRAW NOISE TEXTURE
+    // SCALE NOISE SIZE PROPORTIONALLY TO MAINTAIN CONSISTENT
+    // VISUAL GRAIN SIZE ACROSS DIFFERENT EXPORT RESOLUTIONS
+    const noiseSize = Math.round(cardWidth * 0.25);
     const noiseCanvas = document.createElement('canvas');
-    noiseCanvas.width = cardWidth;
-    noiseCanvas.height = cardHeight;
+    noiseCanvas.width = noiseSize;
+    noiseCanvas.height = noiseSize;
     const noiseCtx = noiseCanvas.getContext('2d');
 
     // CREATE NOISE USING 'ImageData'
-    const noiseData = noiseCtx.createImageData(cardWidth, cardHeight);
+    const noiseData = noiseCtx.createImageData(noiseSize, noiseSize);
     for (let i = 0; i < noiseData.data.length; i += 4) {
       const noise = Math.random() * 255;
       noiseData.data[i] = noise;
@@ -241,7 +244,14 @@ async function exportBanner(bannerElement, imgElement, cardElement, txtElement, 
     // DRAW NOISE WITH OVERLAY BLEND MODE AT 15% OPACITY
     ctx.globalAlpha = 0.15;
     ctx.globalCompositeOperation = 'overlay';
-    ctx.drawImage(noiseCanvas, cardX, cardY);
+    ctx.imageSmoothingEnabled = false; // DISABLE SMOOTHING TO KEEP SHARP NOISE
+    
+    // TILE THE NOISE PATTERN TO COVER THE ENTIRE CARD
+    const pattern = ctx.createPattern(noiseCanvas, 'repeat');
+    ctx.fillStyle = pattern;
+    ctx.fillRect(cardX, cardY, cardWidth, cardHeight);
+    
+    ctx.imageSmoothingEnabled = true;
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
 
